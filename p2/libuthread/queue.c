@@ -4,7 +4,7 @@
 
 #include "queue.h"
 
-typdef struct Linked {
+typedef struct Linked {
 	struct Linked* next;
 	struct Linked* prev;
 	void* data;
@@ -18,14 +18,14 @@ struct queue {
 
 queue_t queue_create(void)
 {
-	return (queue_t*) malloc(sizeof(queue));
+	return (queue_t) malloc(sizeof(queue_t));
 }
 
 int queue_destroy(queue_t queue)
 {
 	if(queue == NULL)
 		return -1;
-	if(queue.length > 0)
+	if(queue->length > 0)
 		return -1;
 	free(queue);
 	return 0;
@@ -49,7 +49,7 @@ int queue_dequeue(queue_t queue, void **data)
 {
 	if(queue == NULL || data == NULL)
 		return -1;
-	if(queue.length == 0)
+	if(queue->length == 0)
 		return -1;
 	*data = queue->bottom;
 	queue->bottom = queue->bottom->prev;
@@ -85,9 +85,9 @@ int queue_delete(queue_t queue, void *data)
 				curr->next->prev = curr->prev;
 			}
 			free(curr);
-			queue.size--;
+			queue->length--;
 			return 0;
-	} while(curr != queue->top)
+	} while(curr != queue->top);
 	return -1;
 }
 
@@ -103,7 +103,7 @@ int queue_iterate(queue_t queue, queue_func_t func, void *arg, void **data)
 		if(retval == 1)
 			break;
 		curr = curr->next;
-	}	while (retval == 0 && curr != queue->bottom)
+	}	while (retval == 0 && curr != queue->bottom);
 	if(retval == 1 && data != NULL){
 		*data = curr->data;
 	}
