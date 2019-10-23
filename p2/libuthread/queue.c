@@ -35,7 +35,7 @@ int queue_enqueue(queue_t queue, void *data)
 {
 	if(queue == NULL || data == NULL)
 		return -1;
-	LinkedEl* el = (LinkedEL*) malloc(sizeof(LinkedEL));
+	LinkedEl* el = (LinkedEl*) malloc(sizeof(LinkedEl));
 	if(el == NULL) // malloc failed
 		return -1;
 	el->next = queue->top;
@@ -93,10 +93,21 @@ int queue_delete(queue_t queue, void *data)
 
 int queue_iterate(queue_t queue, queue_func_t func, void *arg, void **data)
 {
-	while(*func(curr->data) == 0) {
-
+	if(queue == NULL || func == NULL)
+		return -1;
+	// Iterate and Apply function
+	int retval;
+	LinkedEl* curr = queue->top;
+	do {
+		retval = (*func)(curr->data, arg);
+		if(retval == 1)
+			break;
+		curr = curr->next;
+	}	while (retval == 0 && curr != queue->bottom)
+	if(retval == 1 && data != NULL){
+		*data = curr->data;
 	}
-	/* TODO Phase 1 */
+	return 0;
 }
 
 int queue_length(queue_t queue)
