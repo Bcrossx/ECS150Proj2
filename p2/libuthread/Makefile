@@ -1,11 +1,14 @@
 # Target library
 lib := libuthread.a
-objs := queue.c
+objs := queue.o
 
 all: $(lib)
 
 libuthread.a: $(objs)
-	cc -c -g -Wall -Werror -o $(lib) $(objs)
+	ar rcs $(lib) $(objs)
+
+queue.o: queue.c
+	cc -c -g -Wall -Werror queue.c
 
 clean:
 	rm -f $(lib)
