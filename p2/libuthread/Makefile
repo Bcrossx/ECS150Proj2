@@ -5,7 +5,7 @@ objs := queue.c
 all: $(lib)
 
 libuthread.a: $(objs)
-	cc -c -Wall -Werror -o $(lib) $(objs)
+	cc -c -g -Wall -Werror -o $(lib) $(objs)
 
 clean:
 	rm -f $(lib)

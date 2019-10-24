@@ -18,7 +18,11 @@ struct queue {
 
 queue_t queue_create(void)
 {
-	return (queue_t) malloc(sizeof(queue_t));
+	queue_t q = (queue_t) malloc(sizeof(struct queue));
+	q->top = NULL;
+	q->bottom = NULL;
+	q->length = 0;
+	return q;
 }
 
 int queue_destroy(queue_t queue)
@@ -51,8 +55,9 @@ int queue_dequeue(queue_t queue, void **data)
 		return -1;
 	if(queue->length == 0)
 		return -1;
-	*data = queue->bottom;
+	*data = queue->bottom->data;
 	queue->bottom = queue->bottom->prev;
+	free(queue->bottom->next);
 	queue->bottom->next = NULL; // make sure new bottom doesn't point to DQ'd elmt
 	queue->length--;
 	return 0;
@@ -97,13 +102,13 @@ int queue_iterate(queue_t queue, queue_func_t func, void *arg, void **data)
 		return -1;
 	// Iterate and Apply function
 	int retval;
-	LinkedEl* curr = queue->top;
+	LinkedEl* curr = queue->bottom;
 	do {
 		retval = (*func)(curr->data, arg);
 		if(retval == 1)
 			break;
-		curr = curr->next;
-	}	while (retval == 0 && curr != queue->bottom);
+		curr = curr->prev;
+	}	while (retval == 0 && curr != queue->top);
 	if(retval == 1 && data != NULL){
 		*data = curr->data;
 	}
