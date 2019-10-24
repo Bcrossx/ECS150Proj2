@@ -3,7 +3,8 @@
 #  You shouldn't have to touch the rest (but you can read it to understand!)
 programs := \
 	uthread_hello.x \
-	uthread_yield.x
+	uthread_yield.x \
+	test_queue.c
 
 # User-level thread library
 UTHREADLIB := libuthread
@@ -74,4 +75,3 @@ clean:
 	$(Q)rm -rf $(objs) $(deps) $(programs)
 
 .PHONY: clean $(libuthread)
-
