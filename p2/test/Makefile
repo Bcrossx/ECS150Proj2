@@ -4,7 +4,7 @@
 programs := \
 	uthread_hello.x \
 	uthread_yield.x \
-	test_queue.c
+	test_queue.x
 
 # User-level thread library
 UTHREADLIB := libuthread
@@ -67,6 +67,12 @@ $(libuthread):
 %.o: %.c
 	@echo "CC	$@"
 	$(Q)$(CC) $(CFLAGS) $(INCLUDE) -c -o $@ $< $(DEPFLAGS)
+
+# CUSTOM
+tq := test_queue
+q: $(libuthread)
+	gcc -g -c -I$(UTHREADPATH) $(tq).c
+	gcc -o $(tq) $(tq).o -L$(UTHREADPATH) -luthread
 
 # Cleaning rule
 clean:

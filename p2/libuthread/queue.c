@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "queue.h"
 
@@ -19,9 +20,11 @@ struct queue {
 queue_t queue_create(void)
 {
 	queue_t q = (queue_t) malloc(sizeof(struct queue));
-	q->top = NULL;
-	q->bottom = NULL;
-	q->length = 0;
+	if(q != NULL) {
+		q->top = NULL;
+		q->bottom = NULL;
+		q->length = 0;
+	}
 	return q;
 }
 
@@ -46,6 +49,9 @@ int queue_enqueue(queue_t queue, void *data)
 	el->data = data;
 	queue->top = el;
 	queue->length++;
+	if(queue->length == 1) {
+		queue->bottom = queue->top;
+	}
 	return 0;
 }
 
@@ -56,9 +62,13 @@ int queue_dequeue(queue_t queue, void **data)
 	if(queue->length == 0)
 		return -1;
 	*data = queue->bottom->data;
-	queue->bottom = queue->bottom->prev;
-	free(queue->bottom->next);
-	queue->bottom->next = NULL; // make sure new bottom doesn't point to DQ'd elmt
+	if(queue->length == 1) {
+		free(queue->bottom);
+	} else {
+		queue->bottom = queue->bottom->prev;
+		free(queue->bottom->next); // the old bottom element
+		queue->bottom->next = NULL; // make sure new bottom doesn't point to DQ'd elmt
+	}
 	queue->length--;
 	return 0;
 }
@@ -75,11 +85,15 @@ int queue_delete(queue_t queue, void *data)
 	do {
 			// If current item doesn't contain wanted data, move on
 			if(curr->data != data) {
+				if(queue->length == 1)
+					break;
 				curr = curr->prev;
 				continue;
 			}
-			// Need to treat top/bottom elements differently
-			if(curr == queue->top) {
+			if(queue->length == 1) {
+				queue->top = NULL;
+				queue->bottom = NULL;
+			} else if(curr == queue->top) {
 				curr->next->prev = NULL;
 				queue->top = curr->next;
 			} else if(curr == queue->bottom) {
@@ -90,6 +104,7 @@ int queue_delete(queue_t queue, void *data)
 				curr->next->prev = curr->prev;
 			}
 			free(curr);
+			curr = NULL;
 			queue->length--;
 			return 0;
 	} while(curr != queue->top);
@@ -103,11 +118,13 @@ int queue_iterate(queue_t queue, queue_func_t func, void *arg, void **data)
 	// Iterate and Apply function
 	int retval;
 	LinkedEl* curr = queue->bottom;
+	assert(curr == queue->bottom);
 	do {
 		retval = (*func)(curr->data, arg);
 		if(retval == 1)
 			break;
-		curr = curr->prev;
+		if(queue->length > 1)
+			curr = curr->prev;
 	}	while (retval == 0 && curr != queue->top);
 	if(retval == 1 && data != NULL){
 		*data = curr->data;
@@ -117,5 +134,7 @@ int queue_iterate(queue_t queue, queue_func_t func, void *arg, void **data)
 
 int queue_length(queue_t queue)
 {
+	if(queue == NULL)
+		return -1;
 	return queue->length;
 }
