@@ -28,7 +28,9 @@ typedef struct{
 	int retval;
 } TCB;
 
-void init();
+int init(uthread_func_t func, void*arg);
+int init_tcb(TCB* tcb, int index, State s);
+int init_ctx(TCB* tcb, uthread_func_t func, void* arg);
 
 queue_t ready;
 TCB threads[USHRT_MAX];
@@ -37,8 +39,10 @@ uthread_t curr_id;
 
 void uthread_yield(void)
 {
-
-	/* TODO Phase 2 */
+	TCB* next;
+	queue_dequeue(ready, &next);
+	uthread_ctx_switch(threads[curr_id].ctx, next->ctx);
+	curr_id = next->TID;
 }
 
 uthread_t uthread_self(void)
@@ -49,7 +53,7 @@ uthread_t uthread_self(void)
 int uthread_create(uthread_func_t func, void *arg)
 {
 	if(num_threads == 0)
-		init();
+		init(func, arg);
 	if(num_threads == USHRT_MAX)
 		return -1;
 
@@ -60,15 +64,12 @@ int uthread_create(uthread_func_t func, void *arg)
 	tcb->TID = index;
 	tcb->state = READY;
 
-	void* stack = uthread_ctx_alloc_stack();
-	if(stack == NULL) // stack failed to allocate
+	if(init_ctx(tcb, func, arg) == -1) // context failed to initialize
 		return -1;
-	int retval = uthread_ctx_init(tcb->ctx, stack, func, arg);
-	if(retval == -1) // context failed to initialize
+	if(queue_enqueue(ready, tcb) == -1) // failed to enqueue
 		return -1;
-	retval = queue_enqueue(ready, tcb);
-	if(retval == -1) // failed to enqueue
-		return -1;
+
+	num_threads++;
 
 	return tcb->TID;
 }
@@ -85,7 +86,7 @@ int uthread_join(uthread_t tid, int *retval)
 		return -1;
 	}
 	State curr = threads[tid].state;
-	if(curr == READY || curr == ZOMBIE) // thread cannot be found
+	if(curr != RUNNING && curr != BLOCKED) // thread cannot be found
 		return -1;
 	if(threads[tid].is_joining)
 		return -1;
@@ -100,7 +101,32 @@ int uthread_join(uthread_t tid, int *retval)
 	return 0;
 }
 
-void init() {
+int init(uthread_func_t func, void*arg) {
 	ready = queue_create();
 	num_threads = 1;
+
+	// Add main thread to thread list
+	TCB* tcb;
+	if(-1 == init_tcb(tcb, 0, RUNNING))
+		return -1;
+	if(-1 == init_ctx(tcb, func, arg))
+		return -1;
+
+	return 0;
+}
+
+int init_tcb(TCB* tcb, int index, State s) {
+	tcb = &threads[index];
+	if(tcb == NULL)
+		return -1;
+	tcb->TID = index;
+	tcb->state = s;
+	return 0;
+}
+
+int init_ctx(TCB* tcb, uthread_func_t func, void* arg) {
+	void* stack = uthread_ctx_alloc_stack();
+	if(stack == NULL) // stack failed to allocate
+		return -1;
+	return uthread_ctx_init(tcb->ctx, stack, func, arg);
 }
