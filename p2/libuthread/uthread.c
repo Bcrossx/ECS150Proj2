@@ -29,6 +29,7 @@ typedef struct{
 } TCB;
 
 int init(uthread_func_t func, void*arg);
+int switch_thread(TCB* prev, TCB* next);
 int init_tcb(TCB* tcb, int index, State s);
 int init_ctx(TCB* tcb, uthread_func_t func, void* arg);
 
@@ -39,10 +40,12 @@ uthread_t curr_id;
 
 void uthread_yield(void)
 {
-	TCB* next;
-	queue_dequeue(ready, &next);
-	uthread_ctx_switch(threads[curr_id].ctx, next->ctx);
-	curr_id = next->TID;
+	TCB* prev = &threads[curr_id];
+	prev->state = READY;
+	queue_enqueue(ready, prev);
+
+	TCB *next;
+	switch_thread(prev, next);
 }
 
 uthread_t uthread_self(void)
@@ -76,8 +79,12 @@ int uthread_create(uthread_func_t func, void *arg)
 
 void uthread_exit(int retval)
 {
-	threads[curr_id].retval = retval;
-	threads[curr_id].state = ZOMBIE;
+	TCB* prev = &threads[curr_id];
+	prev->state = ZOMBIE;
+	prev->retval = retval;
+
+	TCB *next;
+	switch_thread(next, prev); // Grab next thread & switch context
 }
 
 int uthread_join(uthread_t tid, int *retval)
@@ -86,7 +93,7 @@ int uthread_join(uthread_t tid, int *retval)
 		return -1;
 	}
 	State curr = threads[tid].state;
-	if(curr != RUNNING && curr != BLOCKED) // thread cannot be found
+	if(curr != RUNNING && curr != BLOCKED) // thread cannot be joined
 		return -1;
 	if(threads[tid].is_joining)
 		return -1;
@@ -113,6 +120,16 @@ int init(uthread_func_t func, void*arg) {
 		return -1;
 
 	return 0;
+}
+
+int switch_thread(TCB* prev, TCB* next) {
+	// Get next thread to run
+	int retval = queue_dequeue(ready, &next);
+	assert(retval != -1);
+
+	curr_id = next->TID;
+	next->state = RUNNING;
+	uthread_ctx_switch(prev->ctx, next->ctx);
 }
 
 int init_tcb(TCB* tcb, int index, State s) {
