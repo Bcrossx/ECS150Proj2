@@ -148,7 +148,7 @@ void test_dq_empty() {
 
 	// Setup
 	queue_t q = queue_create();
-	int data = 5, temp = 0, *store = &temp;
+	int data = 5, *store = &data;
 
 	// Test
 	int retval = queue_dequeue(q, (void**) &store);
@@ -296,7 +296,7 @@ void test_iterate_q_null() {
 
 	// Setup
 	queue_t q = (queue_t) NULL;
-	int data = 5, *store;
+	int data = 5, *store = &data;
 	queue_func_t cb = (queue_func_t) &__test_iterate_fxn__;
 
 	// Test
@@ -312,7 +312,6 @@ void test_iterate_func_null() {
 
 	// Setup
 	queue_t q = queue_create();
-	int data = 5;
 	queue_func_t cb = (queue_func_t) NULL;
 
 	// Test

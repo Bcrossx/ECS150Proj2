@@ -69,7 +69,7 @@ $(libuthread):
 	$(Q)$(CC) $(CFLAGS) $(INCLUDE) -c -o $@ $< $(DEPFLAGS)
 
 # CUSTOM
-tq := test_queue
+tq := test_queue.x
 q: $(libuthread)
 	gcc -g -c -I$(UTHREADPATH) $(tq).c
 	gcc -o $(tq) $(tq).o -L$(UTHREADPATH) -luthread

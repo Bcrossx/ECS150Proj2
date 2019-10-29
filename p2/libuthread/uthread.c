@@ -14,6 +14,7 @@
 #include "uthread.h"
 
 typedef enum {
+	UNINITIALIZED,
 	READY,
 	RUNNING,
 	BLOCKED,
@@ -23,20 +24,20 @@ typedef enum {
 typedef struct{
 	uthread_t TID;
 	State state;
-	bool is_joining;
+	bool being_joined;
 	uthread_ctx_t* ctx;
 	int retval;
 } TCB;
 
 int init(uthread_func_t func, void*arg);
-int switch_thread(TCB* prev, TCB* next);
-int init_tcb(TCB* tcb, int index, State s);
+void switch_thread(TCB* prev, TCB* next);
+int init_tcb(TCB** tcb, int index, State s);
 int init_ctx(TCB* tcb, uthread_func_t func, void* arg);
 
 queue_t ready;
 TCB threads[USHRT_MAX];
 int num_threads;
-uthread_t curr_id;
+static uthread_t curr_id;
 
 void uthread_yield(void)
 {
@@ -44,7 +45,7 @@ void uthread_yield(void)
 	prev->state = READY;
 	queue_enqueue(ready, prev);
 
-	TCB *next;
+	TCB *next = NULL;
 	switch_thread(prev, next);
 }
 
@@ -60,20 +61,18 @@ int uthread_create(uthread_func_t func, void *arg)
 	if(num_threads == USHRT_MAX)
 		return -1;
 
-	int index = num_threads - 1;
-	TCB* tcb = &threads[index];
-	if(tcb == NULL)
+	int index = num_threads;
+	TCB* tcb;
+	if(init_tcb(&tcb, index, READY) == -1)
 		return -1;
-	tcb->TID = index;
-	tcb->state = READY;
-
 	if(init_ctx(tcb, func, arg) == -1) // context failed to initialize
 		return -1;
 	if(queue_enqueue(ready, tcb) == -1) // failed to enqueue
 		return -1;
-
 	num_threads++;
 
+	if(num_threads == 2) // need to initiate first context switch
+		uthread_yield();
 	return tcb->TID;
 }
 
@@ -83,8 +82,8 @@ void uthread_exit(int retval)
 	prev->state = ZOMBIE;
 	prev->retval = retval;
 
-	TCB *next;
-	switch_thread(next, prev); // Grab next thread & switch context
+	TCB *next = NULL;
+	switch_thread(prev, next); // Grab next thread & switch context
 }
 
 int uthread_join(uthread_t tid, int *retval)
@@ -93,17 +92,15 @@ int uthread_join(uthread_t tid, int *retval)
 		return -1;
 	}
 	State curr = threads[tid].state;
-	if(curr != RUNNING && curr != BLOCKED) // thread cannot be joined
+	if(curr == UNINITIALIZED) // thread cannot be found
 		return -1;
-	if(threads[tid].is_joining)
+	if(threads[tid].being_joined)
 		return -1;
-	threads[tid].is_joining = true;
+	threads[tid].being_joined = true;
 
 	while(threads[tid].state != ZOMBIE); // block while waiting
 
 	*retval = threads[tid].retval;
-
-
 	/* TODO Phase 3 */
 	return 0;
 }
@@ -113,8 +110,8 @@ int init(uthread_func_t func, void*arg) {
 	num_threads = 1;
 
 	// Add main thread to thread list
-	TCB* tcb;
-	if(-1 == init_tcb(tcb, 0, RUNNING))
+	TCB* tcb = NULL;
+	if(-1 == init_tcb(&tcb, 0, RUNNING))
 		return -1;
 	if(-1 == init_ctx(tcb, func, arg))
 		return -1;
@@ -122,9 +119,9 @@ int init(uthread_func_t func, void*arg) {
 	return 0;
 }
 
-int switch_thread(TCB* prev, TCB* next) {
+void switch_thread(TCB* prev, TCB* next) {
 	// Get next thread to run
-	int retval = queue_dequeue(ready, &next);
+	int retval = queue_dequeue(ready, (void**) &next);
 	assert(retval != -1);
 
 	curr_id = next->TID;
@@ -132,18 +129,23 @@ int switch_thread(TCB* prev, TCB* next) {
 	uthread_ctx_switch(prev->ctx, next->ctx);
 }
 
-int init_tcb(TCB* tcb, int index, State s) {
-	tcb = &threads[index];
-	if(tcb == NULL)
-		return -1;
-	tcb->TID = index;
-	tcb->state = s;
+int init_tcb(TCB** tcb, int index, State s) {
+	TCB *temp = &threads[index];
+	assert(tcb != NULL);
+//	if(tcb == NULL)
+//		return -1;
+	temp->TID = index;
+	temp->state = s;
+	*tcb = temp;
 	return 0;
 }
 
 int init_ctx(TCB* tcb, uthread_func_t func, void* arg) {
 	void* stack = uthread_ctx_alloc_stack();
 	if(stack == NULL) // stack failed to allocate
+		return -1;
+	tcb->ctx = (uthread_ctx_t*) malloc(sizeof(uthread_ctx_t));
+	if(!tcb->ctx) // ctx failed to allocate
 		return -1;
 	return uthread_ctx_init(tcb->ctx, stack, func, arg);
 }

@@ -46,6 +46,8 @@ int queue_enqueue(queue_t queue, void *data)
 	if(el == NULL) // malloc failed
 		return -1;
 	el->next = queue->top;
+	if(queue->top)
+		queue->top->prev = el;
 	el->data = data;
 	queue->top = el;
 	queue->length++;
