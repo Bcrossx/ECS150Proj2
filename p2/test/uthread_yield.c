@@ -14,10 +14,11 @@
 #include <stdlib.h>
 
 #include <uthread.h>
+#include <preempt.h>
 
 int thread3(void* arg)
 {
-	uthread_yield();
+	uthread_join(1, NULL);
 	printf("thread%d\n", uthread_self());
 	return 0;
 }
@@ -41,6 +42,7 @@ int thread1(void* arg)
 
 int main(void)
 {
+	preempt_disable();
 	uthread_join(uthread_create(thread1, NULL), NULL);
 	return 0;
 }

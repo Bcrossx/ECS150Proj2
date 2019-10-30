@@ -20,4 +20,4 @@ context.o:
 	cc -c -g -Wall -Werror context.c
 
 clean:
-	rm -f $(lib)
+	rm -f $(lib) $(objs)
