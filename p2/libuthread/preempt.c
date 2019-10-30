@@ -17,18 +17,20 @@
 #define HZ 100
 
 void catch_sigvalrm();
-sigset_t mask, origMask;
+sigset_t mask;
 
 void preempt_disable(void)
 {
-	sigprocmask(SIG_SETMASK, &origMask, NULL); // revert mask, unblock sigvtalrm
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGVTALRM);
+	sigprocmask(SIG_BLOCK, &mask, NULL);
 }
 
 void preempt_enable(void)
 {
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGVTALRM);
-	sigprocmask(SIG_BLOCK, &mask, &origMask);
+	sigprocmask(SIG_UNBLOCK, &mask, NULL); // revert mask, unblock sigvtalrm
 }
 
 void preempt_start(void)
@@ -39,26 +41,22 @@ void preempt_start(void)
 	// Add timer
 	struct itimerval timer;
 	timer.it_value.tv_sec = 0;
-	timer.it_value.tv_usec = 10000;
+	timer.it_value.tv_usec = 1000000 / HZ;
 	timer.it_interval.tv_sec = 0;
-	timer.it_interval.tv_usec = 10000;
+	timer.it_interval.tv_usec = 1000000 / HZ;
 	setitimer(ITIMER_VIRTUAL, &timer, NULL);
 }
 
-void sig_valrm_handler(int signum, siginfo_t *info, void *ptr)
+void sig_vtalrm_handler(int signum)
 {
 	preempt_disable();
-	printf("s");
 	uthread_yield();
 }
 
 void catch_sigvalrm()
 {
 	static struct sigaction sigact;
-
-	memset(&sigact, 0, sizeof(sigact));
-	sigact.sa_sigaction = sig_valrm_handler;
-	sigact.sa_flags = SA_SIGINFO;
-
+	memset(&sigact, 0, sizeof(sigact)); // init all zeros
+	sigact.sa_handler = sig_vtalrm_handler;
 	sigaction(SIGVTALRM, &sigact, NULL);
 }

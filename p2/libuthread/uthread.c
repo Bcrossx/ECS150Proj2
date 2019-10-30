@@ -154,7 +154,6 @@ void switch_thread(TCB* prev, TCB* next) {
 	int retval = queue_dequeue(ready, (void**) &next);
 
 	if(retval != -1) {
-		// printf("%d -> %d\n", prev->TID, next->TID);
 		curr_id = next->TID;
 		next->state = RUNNING;
 		preempt_disable();
