@@ -9,6 +9,7 @@
 #include <assert.h>
 
 #include <uthread.h>
+#include <preempt.h>
 
 int hello(void* arg)
 {
@@ -18,6 +19,7 @@ int hello(void* arg)
 
 int main(void)
 {
+	preempt_disable();
 	uthread_t tid;
 	int retval;
 
